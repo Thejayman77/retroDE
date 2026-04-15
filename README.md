@@ -38,7 +38,7 @@ staged for first public release. The project is moving fast.
 
 ## Getting Started
 
-Documentation, build instructions, and release notes are coming soon. Watch this repo.
+Documentation, build instructions, and release notes are coming soon. Watch this repo for updates.
 
 ## License
 
