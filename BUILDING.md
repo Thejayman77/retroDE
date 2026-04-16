@@ -27,7 +27,11 @@ cd ~/FPGA_Projects/retroDE_nes
 ./compile_nes.sh
 ```
 
-The build takes roughly 6–7 minutes per core on a modern machine.
+Build times vary widely — anywhere from **~6 minutes for smaller
+cores (NES, Atari 2600, Game Boy) up to ~30 minutes for ao486** on
+a modern machine. CPU core count, clock speed, and Quartus's mood
+all factor in. Splash itself sits near the lower end since it has
+no game logic.
 
 ### Output files
 
