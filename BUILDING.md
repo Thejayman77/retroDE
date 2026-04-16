@@ -28,16 +28,23 @@ cd ~/FPGA_Projects/retroDE_nes
 ```
 
 The build takes roughly 6–7 minutes per core on a modern machine.
-Output lands in `output_files/`:
 
-```
-output_files/retroDE_splash.core.rbf    ← FPGA fabric bitstream
-output_files/retroDE_splash.hps.rbf     ← HPS boot image (splash only)
-```
+### Output files
 
-> **Splash is special:** it produces both a `.core.rbf` (FPGA fabric)
-> and an `.hps.rbf` (HPS boot image with U-Boot SPL baked in). Other
-> cores only produce a `.core.rbf`.
+`output_files/` ends up with several artifacts. The only one you
+deploy at runtime is the `.core.rbf`:
+
+| File | Purpose |
+|---|---|
+| **`<project>.core.rbf`** | **FPGA fabric bitstream — this is what you scp to the board for runtime core swaps.** |
+| `<project>.sof` | Quartus SRAM Object File — direct JTAG load for debugging |
+| `<project>.hps.rbf` | HPS boot image with U-Boot SPL baked in. Not used in the normal workflow; only relevant if rebuilding the HPS-first boot path |
+| `<project>_hps.sof` / `<project>_hps_auto.sof` | Intermediate SOFs with the HPS bootloader merged. Inputs to JIC/RBF generation; you don't deploy these |
+| `<project>_hps.core.rbf` | Identical to `<project>.core.rbf` (different generation path, same bytes) |
+| `<project>_hps.hps.jic` | **One-time QSPI flash image** — see [SETUP.md](SETUP.md#first-time-qspi-flash) for the initial board flash procedure |
+
+> **Always deploy `<project>.core.rbf`.** The other files are
+> intermediates or for the one-time QSPI flash described in SETUP.md.
 
 ### Clean build
 
@@ -82,24 +89,26 @@ aarch64-linux-gnu-gcc -O2 -static -o retrodesd retrodesd.c \
 
 ## Deploying to the board
 
-Copy the compiled RBF and software to the DE25-Nano over the network:
+> **First time on a new board?** You must flash the QSPI once
+> before any of this works — see
+> [SETUP.md → First-time QSPI flash](SETUP.md#first-time-qspi-flash).
+
+Runtime deploys only ever copy the `.core.rbf` and (if rebuilt) the
+`retrodesd` binary:
 
 ```bash
 # Copy the core RBF
 scp output_files/retroDE_splash.core.rbf terasic@<board-ip>:~/cores/
 
-# Copy the HPS RBF (splash only, first-time setup)
-scp output_files/retroDE_splash.hps.rbf terasic@<board-ip>:~/cores/
-
-# Copy retrodesd (after cross-compiling)
+# Copy retrodesd (only if you rebuilt it)
 scp software/retrodesd terasic@<board-ip>:~/software/
 
-# Restart the supervisor to pick up the new binary
+# Restart the supervisor to pick up a new retrodesd binary
 ssh terasic@<board-ip> sudo systemctl restart retrodesd
 ```
 
-For subsequent core updates, just scp the new `.core.rbf` — retrodesd
-picks it up on the next core switch via the OSD menu.
+For routine core updates, just scp the new `.core.rbf` — retrodesd
+loads it on the next core switch via the OSD menu. No restart needed.
 
 ## Workflow summary
 
@@ -122,8 +131,20 @@ the free license from Terasic must be activated. See SETUP.md.
 
 ### RBF generation skipped ("u-boot hex not found")
 The splash build needs `software/u-boot/spl/u-boot-spl-dtb.hex` to
-generate the HPS RBF. This file ships with the repo — if it's missing,
-re-clone or restore it from git history.
+generate the HPS-merged outputs (JIC + HPS RBF). This file ships with
+the splash repo — if it's missing, re-clone or restore it from git
+history. Without it the `.core.rbf` still builds, but the JIC won't
+generate.
+
+### Core loads but the system hangs / no boot
+The QSPI flash on the DE25 needs a compatible HPS-first image programmed
+once. If you're seeing the FPGA configure but the HPS never reaches
+Linux (no SD card activity, no console output), the QSPI image is
+probably stale or missing. See SETUP.md → First-time QSPI flash.
+
+This also applies after a Quartus version upgrade — Quartus changes
+between versions can require reflashing the QSPI with a freshly-built
+JIC from the current Quartus version.
 
 ### retrodesd won't start
 - Needs `sudo` (or run via systemd as root) — requires `/dev/mem`

@@ -189,6 +189,54 @@ sudo systemctl start retrodesd
 The service template lives at `retroDE_splash/software/retrodesd.service.example`.
 Copy it to the board and rename to `retrodesd.service`.
 
+## First-time QSPI flash
+
+The DE25-Nano boots from QSPI flash — at power-on, the FPGA configures
+from QSPI and the HPS first-stage bootloader (U-Boot SPL) runs from
+the same image. Without a compatible image in QSPI, the HPS won't reach
+Linux and runtime core swaps will hang the fabric.
+
+You need to do this **once** when first setting up the board, and
+**again after upgrading Quartus** to a different version (the QSPI
+image must be built with the same Quartus version you're using to
+build cores).
+
+### Build the JIC
+
+The JIC (JTAG Indirect Configuration file) is generated automatically
+when you compile splash. After running `./compile_splash.sh`:
+
+```
+retroDE_splash/output_files/retroDE_splash_hps.hps.jic
+```
+
+This file is pre-configured for the DE25-Nano's QSPI part
+(`MT25QU128`, Active Serial x4 mode) by the splash project's
+`post_flow.tcl` — no manual JIC settings needed.
+
+### Flash the JIC via Quartus Programmer
+
+1. Connect the DE25-Nano to your dev machine via USB (the JTAG cable
+   is built into the board).
+2. Launch **Quartus Programmer**:
+   ```bash
+   quartus_pgmw &
+   ```
+3. Click **Hardware Setup...** and select your DE25 (typically shows
+   as **DE-SoC** or similar).
+4. Click **Add File...** and select
+   `retroDE_splash/output_files/retroDE_splash_hps.hps.jic`.
+5. In the device list that appears, **check the box for "QSPI"** as
+   the programming target (the JIC contains both FPGA and HPS-SPL
+   sections targeting the QSPI flash).
+6. Click **Start**. Programming takes a couple of minutes.
+7. When complete, **power-cycle the board**. The new image now lives
+   in QSPI and the board will boot it on every power-on.
+
+After this, runtime core swaps via `retrodesd` only need the
+`.core.rbf` — the HPS keeps running Linux from SD card and the FPGA
+fabric reconfigures cleanly between cores.
+
 ## Quartus license
 
 Quartus Prime Pro is a paid tool, but **the DE25-Nano includes a free
