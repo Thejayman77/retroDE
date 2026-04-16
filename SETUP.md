@@ -115,42 +115,63 @@ mkdir -p ~/software ~/cores ~/bios ~/roms ~/DOS ~/saves
 ### manifest.cfg
 
 `retrodesd` reads `~/cores/manifest.cfg` to know which cores are
-installed and how to launch them. Example:
+installed and how to launch them.
+
+**Format**: INI-style. `[section]` headers define a core ID; each
+section is a list of `key=value` lines. Lines starting with `#` are
+comments; blank lines are ignored.
+
+#### Section header
+
+`[<core_id>]` — unique core ID (alphanumeric, max 63 chars). Used
+internally and saved to `~/retrode.state` so retrodesd remembers the
+last-loaded core.
+
+#### Per-core options
+
+| Key | Type | Required | Default | Purpose |
+|---|---|---|---|---|
+| `name` | string | No | section ID | Display name shown in the OSD menu |
+| `rbf` | absolute path | **Yes** | — | Path to the core's `.core.rbf` |
+| `backend` | string | **Yes** | — | Session backend type: `splash`, `rom_simple`, `ao486`, `coco2` |
+| `config` | absolute path | No | (none) | Per-core persisted config file |
+| `rom_dir` | absolute path | No | (none) | ROM browser directory (`rom_simple` backends) |
+| `core_id` | uint32 (decimal or `0x...`) | No | `0` (skip check) | Expected `CORE_ID` register value — fails core load if mismatch |
+| `min_abi` | uint32 (decimal or `0x...`) | No | `0` (skip check) | Minimum `ABI_VERSION` required |
+| `media` | comma-separated list | No | (none) | Supported media types: `ide`, `floppy`, `cdrom`, `rom` (max 8) |
+| `extensions` | comma-separated list | No | (none) | File extensions for the ROM browser: `.nes`, `.gb`, `.bin` (max 8) |
+| `bios.<n>` | `slot:path` | No | (none) | BIOS file by slot name; `n` = 0..3 (max 4 BIOS entries per core). Slot names (`bios`, `vgabios`, etc.) are backend-specific |
+
+**Limits**: 16 cores total per manifest, 4 BIOS slots per core,
+8 media types per core, 8 extensions per core.
+
+**Validation**: cores missing `rbf` or `backend` are skipped at parse
+time with a warning. The `core_id` and `min_abi` checks are skipped
+when set to `0`; otherwise mismatches against the FPGA's identity
+registers will fail the core load.
+
+#### Example
+
+Each core's repo includes a recommended manifest snippet to copy
+into your `manifest.cfg`. The example below shows all options on a
+single fake entry — use it as a template.
 
 ```ini
 # retroDE core manifest
 
-[splash]
-name=Splash (Main Menu)
-rbf=/home/terasic/cores/retroDE_splash.core.rbf
-backend=splash
-
-[nes]
-name=NES
-rbf=/home/terasic/cores/retroDE_nes.core.rbf
+[example]
+name=Example Core
+rbf=/home/terasic/cores/retroDE_example.core.rbf
 backend=rom_simple
-extensions=.nes
-media=rom
-
-[ao486]
-name=ao486 (x86 PC)
-rbf=/home/terasic/cores/retroDE_ao486.core.rbf
-backend=ao486
-config=/home/terasic/ao486.cfg
-bios.0=bios:/home/terasic/bios/boot0.rom
-bios.1=vgabios:/home/terasic/bios/boot1_vbe.rom
-media=ide,floppy,cdrom
-
-[coco2]
-name=CoCo2
-rbf=/home/terasic/cores/retroDE_coco2.core.rbf
-backend=coco2
-extensions=.rom,.ccc,.bin
-media=rom
+config=/home/terasic/example.cfg
+rom_dir=/home/terasic/roms/example
+core_id=0x12345678
+min_abi=0x0100
+media=rom,floppy
+extensions=.rom,.bin
+bios.0=bios:/home/terasic/bios/example_boot.rom
+bios.1=auxbios:/home/terasic/bios/example_aux.rom
 ```
-
-Add or remove sections as you install cores. The `backend` field tells
-`retrodesd` which session backend handles the core's lifecycle.
 
 ### Starting retrodesd
 
