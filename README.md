@@ -38,7 +38,13 @@ staged for first public release. The project is moving fast.
 
 ## Getting Started
 
-Documentation, build instructions, and release notes are coming soon. Watch this repo for updates.
+1. **[SETUP.md](SETUP.md)** — one-time environment setup: hardware,
+   Quartus install, board prep, repo layout, SD card file structure.
+2. **[BUILDING.md](BUILDING.md)** — compile cores from source and
+   deploy to the board.
+
+`retroDE_splash` is the platform chassis — clone and build it first.
+Every core depends on its shared RTL.
 
 ## License
 
